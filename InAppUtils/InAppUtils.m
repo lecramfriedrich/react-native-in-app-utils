@@ -50,8 +50,8 @@ RCT_EXPORT_MODULE()
             case SKPaymentTransactionStatePurchased: {
                 NSString *key = RCTKeyForInstance(transaction.payment.productIdentifier);
                 RCTResponseSenderBlock callback = _callbacks[key];
-                if (callback) {
-                    NSDictionary *purchase = [self getPurchaseData:transaction];
+                NSDictionary *purchase = [self getPurchaseData:transaction];
+				if (callback) {
                     callback(@[[NSNull null], purchase]);
                     [_callbacks removeObjectForKey:key];
                 } else {
@@ -142,12 +142,26 @@ restoreCompletedTransactionsFailedWithError:(NSError *)error
     if (callback) {
         NSMutableArray *productsArrayForJS = [NSMutableArray array];
         for(SKPaymentTransaction *transaction in queue.transactions){
-            if(transaction.transactionState == SKPaymentTransactionStateRestored) {
-
-                NSDictionary *purchase = [self getPurchaseData:transaction];
-
-                [productsArrayForJS addObject:purchase];
-                [[SKPaymentQueue defaultQueue] finishTransaction:transaction];
+            switch(transaction.transactionState) {
+                case SKPaymentTransactionStatePurchased: {
+                    NSDictionary *purchase = [self getPurchaseData:transaction];
+                    
+                    [productsArrayForJS addObject:purchase];
+                    [[SKPaymentQueue defaultQueue] finishTransaction:transaction];
+                    break;
+                }                    
+                case SKPaymentTransactionStatePurchasing:
+                    break;
+                case SKPaymentTransactionStateFailed:
+                    [[SKPaymentQueue defaultQueue] finishTransaction:transaction];
+                    break;
+                case SKPaymentTransactionStateRestored: {
+                    NSDictionary *purchase = [self getPurchaseData:transaction];
+                    
+                    [productsArrayForJS addObject:purchase];
+                    [[SKPaymentQueue defaultQueue] finishTransaction:transaction];
+                    break;
+                }
             }
         }
         callback(@[[NSNull null], productsArrayForJS]);
